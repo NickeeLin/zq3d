@@ -1,0 +1,14 @@
+build
+out
+.vs/*
+.vs
+
+*.o
+*.log
+.vs/*
+.vscode/
+
+.clangd
+
+
+
