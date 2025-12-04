@@ -1,0 +1,14 @@
+{
+  "version": 2,
+  "configurePresets": [
+    {
+      "name": "debug",
+      "inherits": "vcpkg",
+      "environment": {
+        // 我没有在环境变量中设置 VCPKG_ROOT，所以在这里指定 vcpkg 路径
+        "VCPKG_ROOT": "E:\\learning\\vcpkg",
+        "VK_SDK_PATH": "D:\\VulkanSDK\\1.4.328.1"
+      }
+    }
+  ]
+}

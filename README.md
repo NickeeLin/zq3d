@@ -1,0 +1,5 @@
+基于wxwidget和OpenGL的自制3d引擎，使用vcpkg和cmake管理依赖包和项目。
+
+依赖的包可以查看vcpkg.json
+
+CMakeUserPresets.json不是必要的，可以删掉它使用系统的环境变量，也可以使用它跟随项目

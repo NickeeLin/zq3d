@@ -1,0 +1,16 @@
+{
+  "dependencies": [
+    "assimp",
+    "d3dx12",
+    "fmt",
+    "glm",
+    {
+      "name": "wxwidgets",
+      "features": [
+        "media",
+        "webview"
+      ]
+    },
+    "glad"
+  ]
+}
