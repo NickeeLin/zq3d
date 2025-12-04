@@ -1,20 +1,18 @@
 ﻿// zq3d.h: 标准系统包含文件的包含文件
 // 或项目特定的包含文件。
-
 #pragma once
 
-#include <iostream>
+#include "header/globals.h"
 
 // TODO: 在此处引用程序需要的其他标头。
-#include <wx/wx.h>
-#include "wx/glcanvas.h"
-#include <wx/timer.h>
+
 
 // the rendering context used by all GL canvases
 class ZQGLContext : public wxGLContext
 {
 public:
 	ZQGLContext(wxGLCanvas* canvas);
+	~ZQGLContext();
 
 	// render the cube showing it at given angles
 	void DrawRotatedCube(float xangle, float yangle);
@@ -60,11 +58,13 @@ private:
 	wxDECLARE_EVENT_TABLE();
 };
 
+class ShaderProgram;
+class Texture;
 class ZQGLCanvas : public wxGLCanvas
 {
 public:
 	ZQGLCanvas(wxWindow* parent, bool useStereo);
-
+	~ZQGLCanvas();
 private:
 	void InitGL();
 	void OnPaint(wxPaintEvent& event);
@@ -80,8 +80,10 @@ private:
 	bool m_useStereo,
 		m_stereoWarningAlreadyDisplayed;
 
-	unsigned int m_shaderProgram;
-	unsigned int m_VBO, m_VAO;
+	ShaderProgram* m_shader;
+	Texture *m_texture1, *m_texture2;
+
+	unsigned int m_VBO, m_VAO, m_EBO,  texture;;
 	wxGLContext* m_glContext;
 
 	wxDECLARE_EVENT_TABLE();

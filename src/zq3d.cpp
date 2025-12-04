@@ -1,11 +1,10 @@
-﻿// zq3d.cpp: 定义应用程序的入口点。
-//
-#include <glad/glad.h>
-#include <fmt/core.h>
+﻿#include <fmt/core.h>
+
 #include "zq3d.h"
 
-
-using namespace std;
+#include "render/ShaderProgram.h"
+#include "scene/Texture.h"
+#include "utils/TestUtils.h"
 
 // control ids
 enum
@@ -146,6 +145,14 @@ ZQGLContext::ZQGLContext(wxGLCanvas* canvas) : wxGLContext(canvas)
 	CheckGLError();
 }
 
+ZQGLContext::~ZQGLContext()
+{
+	for (unsigned i = 0; i < WXSIZEOF(m_textures); i++)
+	{
+		glDeleteTextures(1, &m_textures[i]);
+	}
+}
+
 void ZQGLContext::DrawRotatedCube(float xangle, float yangle)
 {
 	glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
@@ -266,6 +273,7 @@ bool ZQApp::OnInit()
 	if (!wxApp::OnInit())
 		return false;
 
+	wxInitAllImageHandlers();
 	new ZQFrame();
 
 	return true;
@@ -312,15 +320,6 @@ ZQFrame::ZQFrame(bool stereoWindow) :
 	attribs.RGBA().DoubleBuffer().EndList();
 	wxLogStatus("Double-buffered display %s supported",
 		wxGLCanvas::IsDisplaySupported(attribs) ? "is" : "not");
-
-	if (stereoWindow)
-	{
-		const wxString vendor = glGetwxString(GL_VENDOR).Lower();
-		const wxString renderer = glGetwxString(GL_RENDERER).Lower();
-		if (vendor.find("nvidia") != wxString::npos &&
-			renderer.find("quadro") == wxString::npos)
-			ShowFullScreen(true);
-	}
 }
 
 void ZQFrame::OnClose(wxCommandEvent& event)
@@ -367,10 +366,12 @@ ZQGLCanvas::ZQGLCanvas(wxWindow* parent, bool useStereo)
 	m_yangle(30.0),
 	m_spinTimer(this, SpinTimer),
 	m_useStereo(useStereo),
-	m_stereoWarningAlreadyDisplayed(false)
+	m_stereoWarningAlreadyDisplayed(false),
+	m_glContext(nullptr),
+	m_shader(nullptr),
+	m_texture1(nullptr),
+	m_texture2(nullptr)
 {
-
-
 	wxGLAttributes attribs = wxGLAttributes();
 	// 必须启用下面这些属性才能使用OpenGL3.3以上的新版本
 	attribs.PlatformDefaults().RGBA().DoubleBuffer().Depth(16).EndList();
@@ -391,74 +392,60 @@ ZQGLCanvas::ZQGLCanvas(wxWindow* parent, bool useStereo)
 		std::cout << "Failed to initialize GLAD" << std::endl;
 		return;
 	}
-	
+
 	// 检查实际版本
 	const char* version = (const char*)glGetString(GL_VERSION);
-	//wxLogMessage("OpenGL Version: %s", version);
+	// wxLogMessage("OpenGL Version: %s", version);
 
 	InitGL();
 }
 
+ZQGLCanvas::~ZQGLCanvas()
+{
+	if (m_shader)
+		delete m_shader;
+	if (m_texture1)
+		delete m_texture1;
+	if (m_texture2)
+		delete m_texture2;
+
+	if (m_VAO > 0)
+		glDeleteVertexArrays(1, &m_VAO);
+	if (m_VBO > 0)
+		glDeleteBuffers(1, &m_VBO);
+	if (m_EBO > 0)
+		glDeleteBuffers(1, &m_EBO);
+
+	if (m_glContext)
+		delete m_glContext;
+}
+
 void ZQGLCanvas::InitGL()
 {
-	const char* vertexShaderSource = "#version 330 core\n"
-		"layout (location = 0) in vec3 aPos;\n"
-		"void main()\n"
-		"{\n"
-		"   gl_Position = vec4(aPos.x, aPos.y, aPos.z, 1.0);\n"
-		"}\0";
-	const char* fragmentShaderSource = "#version 330 core\n"
-		"out vec4 FragColor;\n"
-		"void main()\n"
-		"{\n"
-		"   FragColor = vec4(1.0f, 0.5f, 0.2f, 1.0f);\n"
-		"}\n\0";
+	m_glContext->SetCurrent(*this);
+	glEnable(GL_DEPTH_TEST);
 
-	unsigned int vertexShader;
-	vertexShader = glCreateShader(GL_VERTEX_SHADER);
-	glShaderSource(vertexShader, 1, &vertexShaderSource, NULL);
-	glCompileShader(vertexShader);
-	CheckGLError();
+	//m_shader = new ShaderProgram("textureShader");
+	//m_shader->LoadAndLink("resources/shader/texture.vs", "resources/shader/texture.fs");
+	//m_texture = new Texture("resources/texture/wall.jpg");
+	//TestUtils::BuildTestTextureGL(m_VAO, m_VBO, m_EBO);
 
-	unsigned int fragmentShader;
-	fragmentShader = glCreateShader(GL_FRAGMENT_SHADER);
-	glShaderSource(fragmentShader, 1, &fragmentShaderSource, NULL);
-	glCompileShader(fragmentShader);
-	CheckGLError();
+	m_shader = new ShaderProgram("cameraShader");
+	m_shader->LoadAndLink("resources/shader/camera.vs", "resources/shader/camera.fs");
 
-	m_shaderProgram = glCreateProgram();
-	glAttachShader(m_shaderProgram, vertexShader);
-	glAttachShader(m_shaderProgram, fragmentShader);
-	glLinkProgram(m_shaderProgram);
+	TestUtils::BuildTestCameraGL(m_VAO, m_VBO, m_EBO);
 
-	glDeleteShader(vertexShader);
-	glDeleteShader(fragmentShader);
+	m_texture1 = new Texture("resources/texture/container.jpg", false, false, true);
+	m_texture2 = new Texture("resources/texture/awesomeface.png");
+	m_shader->Use();
+	m_shader->SetInt("texture1", 0);
+	m_shader->SetInt("texture2", 1);
+	// pass projection matrix to shader (as projection matrix rarely changes there's no need to do this per frame)
+	// -----------------------------------------------------------------------------------------------------------
+	const wxSize ClientSize = GetClientSize() * GetContentScaleFactor();
+	glm::mat4 projection = glm::perspective(glm::radians(45.0f), (float)ClientSize.x / (float)ClientSize.y, 0.1f, 100.0f);
+	m_shader->setMat4("projection", projection);
 
-	// set up vertex data (and buffer(s)) and configure vertex attributes
-	// ------------------------------------------------------------------
-	float vertices[] = {
-		-0.5f, -0.5f, 0.0f, // left  
-		 0.5f, -0.5f, 0.0f, // right 
-		 0.0f,  0.5f, 0.0f  // top   
-	};
-
-	glGenVertexArrays(1, &m_VAO);
-	glGenBuffers(1, &m_VBO);
-	// bind the Vertex Array Object first, then bind and set vertex buffer(s), and then configure vertex attributes(s).
-	glBindVertexArray(m_VAO);
-
-	glBindBuffer(GL_ARRAY_BUFFER, m_VBO);
-	glBufferData(GL_ARRAY_BUFFER, sizeof(vertices), vertices, GL_STATIC_DRAW);
-
-	glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 3 * sizeof(float), (void*)0);
-	glEnableVertexAttribArray(0);
-
-	// note that this is allowed, the call to glVertexAttribPointer registered VBO as the vertex attribute's bound vertex buffer object so afterwards we can safely unbind
-	glBindBuffer(GL_ARRAY_BUFFER, 0);
-
-	// You can unbind the VAO afterwards so other VAO calls won't accidentally modify this VAO, but this rarely happens. Modifying other
-	// VAOs requires a call to glBindVertexArray anyways so we generally don't unbind VAOs (nor VBOs) when it's not directly necessary.
-	glBindVertexArray(0);
 
 	CheckGLError();
 }
@@ -468,36 +455,43 @@ void ZQGLCanvas::OnPaint(wxPaintEvent& event)
 	// This is required even though dc is not used otherwise.
 	wxPaintDC dc(this);
 
-	// Set the OpenGL viewport according to the client size of this canvas.
-	// This is done here rather than in a wxSizeEvent handler because our
-	// OpenGL rendering context (and thus viewport setting) is used with
-	// multiple canvases: If we updated the viewport in the wxSizeEvent
-	// handler, changing the size of one canvas causes a viewport setting that
-	// is wrong when next another canvas is repainted.
 	const wxSize ClientSize = GetClientSize() * GetContentScaleFactor();
-	glClearColor(0.2f, 0.3f, 0.3f, 1.0f);
-	glClear(GL_COLOR_BUFFER_BIT);
 
-	ZQGLContext& canvas = wxGetApp().GetContext(this, m_useStereo);
-	glViewport(0, 0, ClientSize.x, ClientSize.y);
-	canvas.DrawRotatedCube(m_xangle, m_yangle);
+	//ZQGLContext& canvas = wxGetApp().GetContext(this, m_useStereo);
+	//glViewport(0, 0, ClientSize.x, ClientSize.y);
+	//canvas.DrawRotatedCube(m_xangle, m_yangle);
 
 	SetCurrent(*m_glContext);
 	glViewport(0, 0, ClientSize.x, ClientSize.y);
-	//glEnable(GL_DEPTH_TEST);
-	//glDepthFunc(GL_LEQUAL);
-	//glEnable(GL_BLEND);
-	//glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
+	glClearColor(0.2f, 0.3f, 0.3f, 1.0f);
+	glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 
-	//glClearColor((GLfloat)0.15, (GLfloat)0.15, 0.0, (GLfloat)1.0); // Dark, but not black.
-	//glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
+	glActiveTexture(GL_TEXTURE0);
+	glBindTexture(GL_TEXTURE_2D, m_texture1->ID());
+	glActiveTexture(GL_TEXTURE1);
+	glBindTexture(GL_TEXTURE_2D, m_texture2->ID());
 
-	glUseProgram(m_shaderProgram);
+	m_shader->Use();
+	// camera/view transformation
+	//glm::mat4 view = glm::mat4(1.0f); // make sure to initialize matrix to identity matrix first
+	//float radius = 10.0f;
+	//float camX = static_cast<float>(sin(2) * radius);
+	//float camZ = static_cast<float>(cos(14) * radius);
+	//view = glm::lookAt(glm::vec3(camX, 0.0f, camZ), glm::vec3(0.0f, 0.0f, 0.0f), glm::vec3(0.0f, 1.0f, 0.0f));
+
+	//m_shader->setMat4("view", view);
+	m_shader->setMat4("view", glm::translate(glm::mat4(1.0f), glm::vec3(0.0f, 0.0f, -3.0f)));
+
+	glm::mat4 model = glm::mat4(1.0f);
+	model = glm::rotate(model, glm::radians(m_xangle), glm::vec3(1.0f, 0.0f, 0.0f));
+	model = glm::rotate(model, glm::radians(m_yangle), glm::vec3(0.0f, 1.0f, 0.0f));
+	m_shader->setMat4("model", model);
+
+	// render boxes
 	glBindVertexArray(m_VAO);
-	glDrawArrays(GL_TRIANGLES, 0, 3);
+	glDrawArrays(GL_TRIANGLES, 0, 36);
 
-	glBindVertexArray(0);
-	glUseProgram(0);
+	//TestUtils::DrawTestTextureGL(m_shader, m_texture, m_VAO);
 
 	SwapBuffers();
 }
