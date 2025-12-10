@@ -229,5 +229,5 @@ TextureType Texture::Type()
 
 GLenum Texture::TypeGL()
 {
-	return GLenum();
+	return this->glType;
 }

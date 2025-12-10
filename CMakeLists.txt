@@ -22,8 +22,9 @@ find_package(OpenGL REQUIRED)
 # d3dx12 glad glm
 find_path(D3DX12_INCLUDE_DIRS "d3dx12.h")
 #find_package(GLEW REQUIRED)
-find_package(glad REQUIRED)
+find_package(glad CONFIG REQUIRED)
 find_package(glm CONFIG REQUIRED)
+find_package(assimp CONFIG REQUIRED)
 
 if(DEFINED ENV{VK_SDK_PATH})
     include_directories($ENV{VK_SDK_PATH}/include)
@@ -43,27 +44,31 @@ endif()
 set(SOURCES 
     # main
     "src/zq3d.cpp"
-    "src/zq3d.h"
-    # header
-    "src/header/globals.h"
     # render
+    "src/render/RenderEngine.cpp" 
+    "src/render/ShaderManager.cpp"
     "src/render/ShaderProgram.cpp"
-    "src/render/ShaderProgram.h"
     # scene
-    "src/scene/Camera.h" 
+    "src/scene/Buffer.cpp"
     "src/scene/Camera.cpp"
+    "src/scene/Component.cpp" 
+    "src/scene/Light.cpp" 
+    "src/scene/Material.cpp" 
+    "src/scene/Mesh.cpp"
+    "src/scene/Model.cpp" 
     "src/scene/Texture.cpp"
-    "src/scene/Texture.h"
+    "src/scene/LightSource.cpp" 
+    "src/scene/SceneManager.cpp" 
     # utils
-    "src/utils/TestUtils.h" 
     "src/utils/TestUtils.cpp"
+    "src/utils/Utils.cpp" 
  
 )
 
 # add lib
-set(PKGLIBS fmt::fmt wx::core wx::base wx::gl wx::webview OpenGL::GL glad::glad glm::glm)
+set(PKGLIBS fmt::fmt wx::core wx::base wx::gl wx::webview OpenGL::GL glad::glad glm::glm assimp::assimp)
 # 将源代码添加到此项目的可执行文件。
-add_executable(zq3d WIN32 ${RC_FILE} ${MANIFEST_FILE} ${SOURCES}  )
+add_executable(zq3d WIN32 ${RC_FILE} ${MANIFEST_FILE} ${SOURCES} )
 
 target_include_directories(zq3d PRIVATE src ${D3DX12_INCLUDE_DIRS})
 target_link_libraries(zq3d PRIVATE ${PKGLIBS}) # OpenGL::GL

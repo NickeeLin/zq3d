@@ -1,6 +1,8 @@
 #ifndef SHADERPROGRAM_H
 #define SHADERPROGRAM_H
 
+#include "header/globals.h"
+
 #include <wx/glcanvas.h>
 
 #include <glm/vec2.hpp>
@@ -10,51 +12,36 @@
 #include <glm/mat3x3.hpp>
 #include <glm/mat4x4.hpp>
 
-enum Attrib
-{
-	ATTRIB_NORMAL, ATTRIB_POSITION, ATTRIB_TEXCOORDS, NR_OF_ATTRIBS
-};
-
-enum UniformBufferTypeGL
-{
-	UBO_GL_MATRIX,
-	UBO_GL_COLOR,
-	UBO_GL_DEFAULT,
-	UBO_GL_DEPTH,
-	UBO_GL_HUD,
-	UBO_GL_TEXTURES0, UBO_GL_TEXTURES1, UBO_GL_TEXTURES2, UBO_GL_TEXTURES3, UBO_GL_TEXTURES4, UBO_GL_TEXTURES5,
-	UBO_GL_TEXTURES6,
-	UBO_GL_TEXTURES7,
-	NR_OF_UBOS_GL
-};
-
 class Component;
 
 class ShaderProgram
 {
 public:
-	ShaderProgram(const wxString& name);
+	ShaderProgram(const wxString& name, ShaderID id = SHADER_ID_UNKNOWN);
 	~ShaderProgram();
 
 public:
-	//GLuint Attribs[NR_OF_ATTRIBS];
-	//GLint  Uniforms[NR_OF_UBOS_GL];
-	//GLuint UniformBuffers[NR_OF_UBOS_GL];
+	GLuint Attribs[NR_OF_ATTRIBS];
+	GLint  Uniforms[NR_OF_UBOS_GL];
+	GLuint UniformBuffers[NR_OF_UBOS_GL];
 
 private:
-	wxString       m_name;
-	GLuint         m_program;
+	ShaderID m_id;
+	wxString m_name;
+	GLuint m_program;
 
 public:
-	bool           IsOK();
-	int            Link();
-	int            Load(const wxString& shaderFile);
-	int            LoadAndLink(const wxString& vs, const wxString& fs, const wxString& gs = "");
-	void           Log();
-	void           Log(GLuint shader);
-	wxString       Name();
-	GLuint         Program();
-	int            UpdateAttribsGL(Component* mesh);
+	ShaderID ID();
+	bool IsOK();
+	int Link();
+	int Load(const wxString& shaderFile);
+	int LoadAndLink(const wxString& vs, const wxString& fs, const wxString& gs = "");
+	void Log();
+	void Log(GLuint shader);
+	wxString Name();
+	GLuint Program();
+	int UpdateAttribsGL(Component* mesh);
+	int UpdateUniformsGL(Component* mesh, const DrawProperties& properties = {});
 
 	void Use();
 	void SetInt(const std::string& name, int value) const

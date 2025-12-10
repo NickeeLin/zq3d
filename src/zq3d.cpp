@@ -5,6 +5,11 @@
 #include "render/ShaderProgram.h"
 #include "scene/Texture.h"
 #include "utils/TestUtils.h"
+#include "scene/Camera.h"
+#include "render/ShaderManager.h"
+#include "render/RenderEngine.h"
+#include <scene/Model.h>
+#include <scene/SceneManager.h>
 
 // control ids
 enum
@@ -355,9 +360,10 @@ wxBEGIN_EVENT_TABLE(ZQGLCanvas, wxGLCanvas)
 EVT_PAINT(ZQGLCanvas::OnPaint)
 EVT_KEY_DOWN(ZQGLCanvas::OnKeyDown)
 EVT_TIMER(SpinTimer, ZQGLCanvas::OnSpinTimer)
+EVT_MOUSE_EVENTS(ZQGLCanvas::OnMouse)
 wxEND_EVENT_TABLE()
 
-ZQGLCanvas::ZQGLCanvas(wxWindow* parent, bool useStereo)
+ZQGLCanvas::ZQGLCanvas(ZQFrame* parent, bool useStereo)
 // With perspective OpenGL graphics, the wxFULL_REPAINT_ON_RESIZE style
 // flag should always be set, because even making the canvas smaller should
 // be followed by a paint event that updates the entire canvas with new
@@ -383,21 +389,28 @@ ZQGLCanvas::ZQGLCanvas(wxWindow* parent, bool useStereo)
 	{
 		wxLogError("Creating OpenGL window failed.");
 	}
-	m_glContext = new wxGLContext(this);
-	m_glContext->SetCurrent(*this);
-	// glad: load all OpenGL function pointers
-	// ---------------------------------------
-	if (!gladLoadGL())
-	{
-		std::cout << "Failed to initialize GLAD" << std::endl;
-		return;
-	}
+
+
+	deltaTimer.Start();
+	this->Connect(wxEVT_IDLE, wxIdleEventHandler(ZQGLCanvas::GameLoop));
+
+	//CheckGLError();
+	//RenderEngine::Renderables.push_back(mymodel);
+	//m_glContext = new wxGLContext(this);
+	//m_glContext->SetCurrent(*this);
+	//// glad: load all OpenGL function pointers
+	//// ---------------------------------------
+	//if (!gladLoadGL())
+	//{
+	//	std::cout << "Failed to initialize GLAD" << std::endl;
+	//	return;
+	//}
 
 	// 检查实际版本
-	const char* version = (const char*)glGetString(GL_VERSION);
+	//const char* version = (const char*)glGetString(GL_VERSION);
 	// wxLogMessage("OpenGL Version: %s", version);
 
-	InitGL();
+	//InitGL();
 }
 
 ZQGLCanvas::~ZQGLCanvas()
@@ -440,14 +453,47 @@ void ZQGLCanvas::InitGL()
 	m_shader->Use();
 	m_shader->SetInt("texture1", 0);
 	m_shader->SetInt("texture2", 1);
-	// pass projection matrix to shader (as projection matrix rarely changes there's no need to do this per frame)
-	// -----------------------------------------------------------------------------------------------------------
-	const wxSize ClientSize = GetClientSize() * GetContentScaleFactor();
-	glm::mat4 projection = glm::perspective(glm::radians(45.0f), (float)ClientSize.x / (float)ClientSize.y, 0.1f, 100.0f);
-	m_shader->setMat4("projection", projection);
-
 
 	CheckGLError();
+
+	m_camera = new Camera(this);
+
+	deltaTimer.Start();
+	this->Connect(wxEVT_IDLE, wxIdleEventHandler(ZQGLCanvas::GameLoop));
+}
+
+void ZQGLCanvas::GameLoop(wxIdleEvent& event)
+{
+	//event.RequestMore();
+
+	//RenderEngine::Draw();
+
+	if (deltaTimer.Time() >= 1000)
+	{
+		DeltaTime = (1.0 / (double)FPS);
+		//Time              time = Time(totalTimer.Time());
+		m_camera->updateDeltaTime(DeltaTime);
+		//std::swprintf(
+		//	RenderEngine::Canvas.Window->Title,
+		//	BUFFER_SIZE,
+		//	L"%ls v.%ls - %ls %ls - %ls - %d FPS (%f dT) - %02ld:%02ld:%02ld",
+		//	Utils::APP_NAME.c_str().AsWChar(),
+		//	Utils::APP_VERSION.c_str().AsWChar(),
+		//	RenderEngine::GPU.Vendor.c_str().AsWChar(),
+		//	RenderEngine::GPU.Renderer.c_str().AsWChar(),
+		//	RenderEngine::GPU.Version.c_str().AsWChar(),
+		//	TimeManager::FPS,
+		//	TimeManager::DeltaTime,
+		//	time.Hours, time.Minutes, time.Seconds
+		//);
+		//RenderEngine::Canvas.Window->SetTitle(RenderEngine::Canvas.Window->Title);
+
+		FPS = 0;
+		deltaTimer.Start();
+	}
+	FPS++;
+
+	Refresh(false);
 }
 
 void ZQGLCanvas::OnPaint(wxPaintEvent& event)
@@ -455,6 +501,25 @@ void ZQGLCanvas::OnPaint(wxPaintEvent& event)
 	// This is required even though dc is not used otherwise.
 	wxPaintDC dc(this);
 
+	if (!RenderEngine::Ready)
+	{
+		RenderEngine::Canvas.Canvas = this;
+		RenderEngine::Init(dynamic_cast<ZQFrame*>(this->GetParent()), { 400, 400 });
+		Model* mymodel = new Model("resources/model/Pikachu_Body_Parts_Polymon.stl");
+		CheckGLError();
+		SceneManager::AddComponent(mymodel);
+
+		m_camera = RenderEngine::CameraMain;
+	}
+	else if (RenderEngine::Ready)
+	{
+		RenderEngine::Canvas.Size = GetClientSize() * GetContentScaleFactor();
+		glViewport(0, 0, RenderEngine::Canvas.Size.GetWidth(), RenderEngine::Canvas.Size.GetHeight());
+		RenderEngine::Draw();
+	}
+
+
+	return;
 	const wxSize ClientSize = GetClientSize() * GetContentScaleFactor();
 
 	//ZQGLContext& canvas = wxGetApp().GetContext(this, m_useStereo);
@@ -480,7 +545,11 @@ void ZQGLCanvas::OnPaint(wxPaintEvent& event)
 	//view = glm::lookAt(glm::vec3(camX, 0.0f, camZ), glm::vec3(0.0f, 0.0f, 0.0f), glm::vec3(0.0f, 1.0f, 0.0f));
 
 	//m_shader->setMat4("view", view);
-	m_shader->setMat4("view", glm::translate(glm::mat4(1.0f), glm::vec3(0.0f, 0.0f, -3.0f)));
+
+	m_camera->UpdateProjection();
+
+	m_shader->setMat4("projection", m_camera->Projection());
+	m_shader->setMat4("view", m_camera->View());
 
 	glm::mat4 model = glm::mat4(1.0f);
 	model = glm::rotate(model, glm::radians(m_xangle), glm::vec3(1.0f, 0.0f, 0.0f));
@@ -500,13 +569,13 @@ void ZQGLCanvas::Spin(float xSpin, float ySpin)
 {
 	m_xangle += xSpin;
 	m_yangle += ySpin;
-
-	Refresh(false);
 }
 
 void ZQGLCanvas::OnKeyDown(wxKeyEvent& event)
 {
 	float angle = 5.0;
+
+	m_camera->InputKeyboard(event.GetKeyCode());
 
 	switch (event.GetKeyCode())
 	{
@@ -532,11 +601,45 @@ void ZQGLCanvas::OnKeyDown(wxKeyEvent& event)
 		else
 			m_spinTimer.Start(25);
 		break;
-
 	default:
 		event.Skip();
 		return;
 	}
+}
+
+void ZQGLCanvas::OnMouse(wxMouseEvent& event)
+{
+	event.Skip();
+	static MouseState m_mouseState;
+	if (event.LeftIsDown() && m_camera) {
+		if (!event.Dragging()) {
+			m_mouseState.Position = event.GetPosition();
+		}
+		else {
+			m_camera->InputMouseMove(event, m_mouseState);
+			m_mouseState.Position = event.GetPosition();
+		}
+	}
+	else if (event.GetEventType() == wxEVT_MOUSEWHEEL) {
+		m_camera->InputMouseScroll(event);
+	}
+
+}
+
+void ZQGLCanvas::OnMouseDown(wxMouseEvent& event)
+{
+}
+
+void ZQGLCanvas::OnMouseUp(wxMouseEvent& event)
+{
+}
+
+void ZQGLCanvas::OnMouseMove(wxMouseEvent& event)
+{
+}
+
+void ZQGLCanvas::OnMouseScroll(wxMouseEvent& event)
+{
 }
 
 void ZQGLCanvas::OnSpinTimer(wxTimerEvent& WXUNUSED)
