@@ -22,7 +22,7 @@ class Texture
 public:
 	Texture(wxImage* image, bool repeat = false, bool flipY = false, bool transparent = false, const glm::vec2& scale = { 1.0f, 1.0f });
 	Texture(const wxString& imageFile, bool srgb = false, bool repeat = false, bool flipY = false, bool transparent = false, const glm::vec2& scale = { 1.0f, 1.0f });
-
+	Texture(const std::vector<wxString>& imageFiles, bool repeat = false, bool flipY = false, bool transparent = false, const glm::vec2& scale = { 1.0f, 1.0f });
 	~Texture();
 public:
 	glm::vec2 Scale;

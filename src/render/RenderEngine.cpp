@@ -4,31 +4,10 @@
 #include "scene/Mesh.h"
 #include "scene/Camera.h"
 #include <scene/SceneManager.h>
-
-static void CheckGLError()
-{
-	GLenum errLast = GL_NO_ERROR;
-
-	for (;; )
-	{
-		GLenum err = glGetError();
-		if (err == GL_NO_ERROR)
-			return;
-
-		// normally the error is reset by the call to glGetError() but if
-		// glGetError() itself returns an error, we risk looping forever here
-		// so check that we get a different error than the last time
-		if (err == errLast)
-		{
-			wxLogError("OpenGL error state couldn't be reset.");
-			return;
-		}
-
-		errLast = err;
-
-		wxLogError("OpenGL error %d", err);
-	}
-}
+#include <utils/Utils.h>
+#include "ui/ZQFrame.h"
+#include "ui/ZQGLCanvas.h"
+#include "scene/Texture.h"
 
 GLCanvas                RenderEngine::Canvas = {};
 DrawModeType            RenderEngine::drawMode = DRAW_MODE_FILLED;
@@ -46,14 +25,14 @@ GraphicsAPI             RenderEngine::SelectedGraphicsAPI = GRAPHICS_API_UNKNOWN
 void RenderEngine::Close()
 {
 	//InputManager::Reset();
-	//SceneManager::Clear();
+	SceneManager::Clear();
 	ShaderManager::Close();
 
 	//_DELETEP(SceneManager::DepthMap2D);
 	//_DELETEP(SceneManager::DepthMapCube);
 
-	//_DELETEP(SceneManager::EmptyCubemap);
-	//_DELETEP(SceneManager::EmptyTexture);
+	_DELETEP(SceneManager::EmptyCubemap);
+	_DELETEP(SceneManager::EmptyTexture);
 
 	//_DELETEP(RenderEngine::Canvas.DX);
 	_DELETEP(RenderEngine::Canvas.GL);
@@ -68,13 +47,15 @@ void RenderEngine::Close()
 
 void RenderEngine::Draw()
 {
+	glViewport(0, 0, RenderEngine::Canvas.Size.GetWidth(), RenderEngine::Canvas.Size.GetHeight());
+
 	RenderEngine::createDepthFBO();
 	RenderEngine::createWaterFBOs();
-	CheckGLError();
+	Utils::CheckGLError();
 	RenderEngine::clear(CLEAR_VALUE_DEFAULT, {});
-	CheckGLError();
+	Utils::CheckGLError();
 	RenderEngine::drawScene();
-	CheckGLError();
+	Utils::CheckGLError();
 	if (RenderEngine::Canvas.Canvas != nullptr)
 		RenderEngine::Canvas.Canvas->SwapBuffers();
 }
@@ -213,14 +194,14 @@ void RenderEngine::drawScene()
 
 int RenderEngine::initResources()
 {
-	//wxString              emptyFile = Utils::RESOURCE_IMAGES["emptyTexture"];
-	//std::vector<wxString> emptyFiles = { emptyFile, emptyFile, emptyFile, emptyFile, emptyFile, emptyFile };
+	wxString              emptyFile = "resources/texture/awesomeface.png";
+	std::vector<wxString> emptyFiles = { emptyFile, emptyFile, emptyFile, emptyFile, emptyFile, emptyFile };
 
-	//SceneManager::EmptyTexture = new Texture(emptyFile);
-	//SceneManager::EmptyCubemap = new Texture(emptyFiles);
+	SceneManager::EmptyTexture = new Texture(emptyFile);
+	SceneManager::EmptyCubemap = new Texture(emptyFiles);
 
-	//if (!SceneManager::EmptyTexture->IsOK() || !SceneManager::EmptyCubemap->IsOK())
-	//	return -1;
+	if (!SceneManager::EmptyTexture->IsOK() || !SceneManager::EmptyCubemap->IsOK())
+		return -1;
 
 	//SceneManager::DepthMap2D = new FrameBuffer(wxSize(FBO_TEXTURE_SIZE, FBO_TEXTURE_SIZE), FBO_DEPTH, TEXTURE_2D_ARRAY);
 	//SceneManager::DepthMapCube = new FrameBuffer(wxSize(FBO_TEXTURE_SIZE, FBO_TEXTURE_SIZE), FBO_DEPTH, TEXTURE_CUBEMAP_ARRAY);
@@ -271,7 +252,7 @@ int RenderEngine::setGraphicsAPI(GraphicsAPI api)
 	RenderEngine::Ready = false;
 	RenderEngine::SelectedGraphicsAPI = api;
 
-	RenderEngine::Close();	
+	RenderEngine::Close();
 
 	// RE-CREATE THE CANVAS
 	if (RenderEngine::setGraphicsApiCanvas() < 0)
@@ -300,13 +281,13 @@ int RenderEngine::setGraphicsAPI(GraphicsAPI api)
 	if (result < 0)
 		return result;
 
-	CheckGLError();
+	Utils::CheckGLError();
 	// RE-INITIALIZE ENGINE MODULES AND RESOURCES
 	if (ShaderManager::Init() < 0) {
 		RenderEngine::Close();
 		return -3;
 	}
-	CheckGLError();
+	Utils::CheckGLError();
 	if (RenderEngine::initResources() < 0) {
 		RenderEngine::Close();
 		return -4;
@@ -318,8 +299,7 @@ int RenderEngine::setGraphicsAPI(GraphicsAPI api)
 	//}
 
 	if (RenderEngine::CameraMain == nullptr) {
-		//RenderEngine::CameraMain = new Camera(RenderEngine::Canvas.Canvas);
-		SceneManager::AddComponent(new Camera(RenderEngine::Canvas.Canvas));
+		SceneManager::AddComponent(new Camera());
 		SceneManager::LoadLightSource(ID_ICON_LIGHT_DIRECTIONAL);
 	}
 
@@ -329,20 +309,11 @@ int RenderEngine::setGraphicsAPI(GraphicsAPI api)
 
 int RenderEngine::setGraphicsApiCanvas()
 {
-	// Defaults: RGBA, Z-depth 16 bits, double buffering, 1 sample buffer, 4 samplers.
-	wxGLAttributes attribs = {};
-	attribs.PlatformDefaults().Defaults().Samplers(16).EndList();
+	RenderEngine::Canvas.Canvas = new ZQGLCanvas(RenderEngine::Canvas.Window);
 
-	//RenderEngine::Canvas.Canvas = new wxGLCanvas(
-	//	RenderEngine::Canvas.Window, attribs, wxID_ANY,
-	//	RenderEngine::Canvas.Position, RenderEngine::Canvas.Size
-	//);
-
-	//RenderEngine::Canvas.Window->SetCanvas(RenderEngine::Canvas.Canvas);
-	//RenderEngine::SetDrawMode(RenderEngine::Canvas.Window->SelectedDrawMode());
+	RenderEngine::SetDrawMode(DRAW_MODE_FILLED/*RenderEngine::Canvas.Window->SelectedDrawMode()*/);
 
 	RenderEngine::Canvas.GL = new wxGLContext(RenderEngine::Canvas.Canvas);
-
 	if (!RenderEngine::Canvas.GL->IsOK())
 		return -1;
 
@@ -350,9 +321,8 @@ int RenderEngine::setGraphicsApiCanvas()
 
 	if (!gladLoadGL())
 		return -2;
-	//if (glewInit() != GLEW_OK)
-	//	return -2;
-	CheckGLError();
+
+	Utils::CheckGLError();
 	return 0;
 }
 
@@ -482,11 +452,11 @@ int RenderEngine::setGraphicsApiGL()
 	glViewport(0, 0, RenderEngine::Canvas.Size.GetWidth(), RenderEngine::Canvas.Size.GetHeight());
 
 	//RenderEngine::SetVSync(RenderEngine::Canvas.Window->VSyncEnable->GetValue());
-	CheckGLError();
+	Utils::CheckGLError();
 	glEnable(GL_MULTISAMPLE);
 	glEnable(GL_TEXTURE_2D);
 	glEnable(GL_TEXTURE_CUBE_MAP);
-	CheckGLError();
+	Utils::CheckGLError();
 	RenderEngine::GPU.Renderer = glGetString(GL_RENDERER);
 	RenderEngine::GPU.Vendor = glGetString(GL_VENDOR);
 	RenderEngine::GPU.Version = wxString("OpenGL ").append(glGetString(GL_VERSION));

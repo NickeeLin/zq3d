@@ -2,6 +2,7 @@
 #include "Texture.h"
 #include "Buffer.h"
 #include "utils/Utils.h"
+#include "SceneManager.h"
 
 Mesh::Mesh(Component* parent, const wxString& name) : Component(name)
 {
@@ -35,10 +36,10 @@ Mesh::~Mesh()
 	this->textureCoords.clear();
 	this->vertices.clear();
 
-	//_DELETEP(this->indexBuffer);
-	//_DELETEP(this->normalBuffer);
-	//_DELETEP(this->textureCoordsBuffer);
-	//_DELETEP(this->vertexBuffer);
+	_DELETEP(this->indexBuffer);
+	_DELETEP(this->normalBuffer);
+	_DELETEP(this->textureCoordsBuffer);
+	_DELETEP(this->vertexBuffer);
 
 	//_DELETEP(this->boundingVolume);
 }
@@ -218,8 +219,7 @@ void Mesh::updateModelData()
 
 	for (int i = 0; i < MAX_TEXTURES; i++) {
 		if (this->Textures[i] == nullptr)
-			//this->LoadTexture(SceneManager::EmptyTexture, i);
-			this->LoadTexture(new Texture(""), i);
+			this->LoadTexture(SceneManager::EmptyTexture, i);
 	}
 }
 
@@ -241,6 +241,6 @@ void Mesh::updateModelData(const aiVector3D& position, const aiVector3D& scale, 
 			this->LoadTextureImage(this->ComponentMaterial.textures[i], i);
 
 		if (this->Textures[i] == nullptr)
-			this->LoadTexture(new Texture(""), i);
+			this->LoadTexture(SceneManager::EmptyTexture, i);
 	}
 }

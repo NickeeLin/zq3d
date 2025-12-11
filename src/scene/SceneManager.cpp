@@ -142,7 +142,10 @@ LightSource* SceneManager::LoadLightSource(IconType type)
 	LightSource* light = new LightSource(Utils::RESOURCE_MODELS[ID_ICON_ICO_SPHERE], type);
 
 	if ((light == nullptr) || !light->IsValid())
+	{
+		_DELETEP(light);
 		return nullptr;
+	}
 
 	if (SceneManager::AddComponent(light) < 0)
 		_DELETEP(light);

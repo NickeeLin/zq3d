@@ -44,6 +44,10 @@ endif()
 set(SOURCES 
     # main
     "src/zq3d.cpp"
+    # ui
+     "src/ui/ZQFrame.cpp" 
+     "src/ui/ZQGLCanvas.cpp" 
+     "src/ui/ZQGLContext.cpp"
     # render
     "src/render/RenderEngine.cpp" 
     "src/render/ShaderManager.cpp"
@@ -68,7 +72,7 @@ set(SOURCES
 # add lib
 set(PKGLIBS fmt::fmt wx::core wx::base wx::gl wx::webview OpenGL::GL glad::glad glm::glm assimp::assimp)
 # 将源代码添加到此项目的可执行文件。
-add_executable(zq3d WIN32 ${RC_FILE} ${MANIFEST_FILE} ${SOURCES} )
+add_executable(zq3d WIN32 ${RC_FILE} ${MANIFEST_FILE} ${SOURCES}  "src/time/TimeManager.cpp" "src/time/TimeManager.h")
 
 target_include_directories(zq3d PRIVATE src ${D3DX12_INCLUDE_DIRS})
 target_link_libraries(zq3d PRIVATE ${PKGLIBS}) # OpenGL::GL

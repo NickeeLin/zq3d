@@ -2,6 +2,27 @@
 #include <scene/Mesh.h>
 #include <fstream>
 
+const wxString Utils::APP_NAME = "3D Engine";
+const uint8_t  Utils::APP_VERSION_MAJOR = 1;
+const uint8_t  Utils::APP_VERSION_MINOR = 0;
+const uint8_t  Utils::APP_VERSION_PATCH = 0;
+const wxString Utils::APP_VERSION = "1.0.0";
+const wxString Utils::ASPECT_RATIOS[] = { "16:9", "4:3" };
+const wxChar* Utils::BOUNDING_VOLUMES[] = { wxT("none"), wxT("box"), wxT("sphere"), nullptr };
+const wxString Utils::COPYRIGHT = "\u00A9 2025;";
+const wxString Utils::DRAW_MODES[] = { "Filled", "Wireframe" };
+const wxString Utils::FOVS[] = { "45\u00B0", "60\u00B0", "75\u00B0", "90\u00B0" };
+//const wxString Utils::GOOGLE_ADS_URL = "http://jammary.com/google_ad_horizontal.html";
+const wxString Utils::IMAGE_FILE_FORMATS = "All supported formats|*.bmp;*.png;*.jpg;*.tif;*.gif;*.pnm;*.pcx;*.ico;*.cur;*.ani;*.tga;*.xpm";
+const wxString Utils::SCENE_FILE_FORMAT = "Scene file (*.scene)|*.scene";
+const wxString Utils::TESTED = "Tested on Windows 10 (64-bit)";
+const wxSize   Utils::UI_ADS_SIZE = wxSize(730, 90);
+const wxSize   Utils::UI_LIST_BOX_SIZE = wxSize(290, 150);
+const wxSize   Utils::UI_RENDER_SIZE = wxSize(640, 360);
+const wxSize   Utils::UI_WINDOW_SIZE = wxSize(1280, 875);
+const wxSize   Utils::UI_PROPS_SIZE = wxSize(590, 280);
+const wxSize   Utils::UI_TABS_SIZE = wxSize(1245, 85);
+
 std::map<IconType, wxString> Utils::RESOURCE_MODELS = {
 	{ ID_ICON_QUAD,        "resources/models/quad.blend" },
 	{ ID_ICON_PLANE,       "resources/models/plane.blend" },
@@ -14,6 +35,30 @@ std::map<IconType, wxString> Utils::RESOURCE_MODELS = {
 	{ ID_ICON_MONKEY_HEAD, "resources/models/monkey_head.blend" }
 };
 
+void Utils::CheckGLError()
+{
+	GLenum errLast = GL_NO_ERROR;
+
+	for (;; )
+	{
+		GLenum err = glGetError();
+		if (err == GL_NO_ERROR)
+			return;
+
+		// normally the error is reset by the call to glGetError() but if
+		// glGetError() itself returns an error, we risk looping forever here
+		// so check that we get a different error than the last time
+		if (err == errLast)
+		{
+			wxLogError("OpenGL error state couldn't be reset.");
+			return;
+		}
+
+		errLast = err;
+
+		wxLogError("OpenGL error %d", err);
+	}
+}
 float Utils::ToRadians(float degrees)
 {
 	return (degrees * glm::pi<float>() / 180.0f);
@@ -105,6 +150,8 @@ std::vector<AssImpMesh*> Utils::LoadModelFile(const wxString& file)
 			}
 			if (mesh->Mesh != nullptr)
 				meshes.push_back(mesh);
+			else
+				delete mesh;
 		}
 	}
 
@@ -138,6 +185,10 @@ std::vector<Component*> Utils::LoadModelFile(const wxString& file, Component* pa
 
 	if (!aiMeshes.empty())
 		aiReleaseImport(aiMeshes[0]->Scene);
+
+	for (auto it : aiMeshes) {
+		_DELETEP(it);
+	}
 
 	return children;
 }

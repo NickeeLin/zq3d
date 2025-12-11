@@ -9,8 +9,8 @@ class Camera : public Component
 {
 public:
 	Camera(const glm::vec3& position, const glm::vec3& lookAt, float fovRadians, float _near, float _far);
-	Camera(wxGLCanvas* canvas);
-	~Camera() {}
+	Camera();
+	virtual ~Camera() {}
 
 private:
 	float m_far;
@@ -24,12 +24,7 @@ private:
 	glm::mat4 m_view;
 	float m_yaw;
 
-	wxGLCanvas* m_canvas;
-	double DeltaTime;
 public:
-	void setCanvas(wxGLCanvas* canvas) { m_canvas = canvas; }
-	void updateDeltaTime(double deltaTime) { DeltaTime = deltaTime; }
-
 	float      Far();
 	bool       InputKeyboard(char key);
 	void       InputMouseMove(const   wxMouseEvent& event, const MouseState& mouseState);

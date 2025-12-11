@@ -1,5 +1,7 @@
 #include "Component.h"
 #include "Texture.h"
+#include "SceneManager.h"
+#include "Mesh.h"
 
 uint32_t Component::sid = 0;
 
@@ -11,7 +13,7 @@ Component::Component(const wxString& name, const glm::vec3& position)
 	//this->LockToParentPosition = false;
 	//this->LockToParentRotation = false;
 	//this->LockToParentScale    = false;
-	//this->ComponentMaterial = {};
+	this->ComponentMaterial = {};
 	this->m_modelFile = "";
 	this->Name = name;
 	this->Parent = nullptr;
@@ -35,11 +37,11 @@ Component::~Component()
 
 	this->Children.clear();
 
-	//for (uint32_t i = 0; i < MAX_TEXTURES; i++) {
-	//	if ((this->type != COMPONENT_WATER) && (this->Textures[i] != SceneManager::EmptyTexture) && (this->Textures[i] != SceneManager::EmptyCubemap)) {
-	//		_DELETEP(this->Textures[i]);
-	//	}
-	//}
+	for (uint32_t i = 0; i < MAX_TEXTURES; i++) {
+		if ((this->m_type != COMPONENT_WATER) && (this->Textures[i] != SceneManager::EmptyTexture) && (this->Textures[i] != SceneManager::EmptyCubemap)) {
+			_DELETEP(this->Textures[i]);
+		}
+	}
 }
 
 int Component::GetChildIndex(Component* child)
@@ -125,12 +127,12 @@ glm::vec3 Component::Position()
 
 int Component::RemoveChild(Mesh* child)
 {
-	//int index = this->GetChildIndex(child);
+	int index = this->GetChildIndex(child);
 
-	//if (index < 0)
-	//	return -1;
+	if (index < 0)
+		return -1;
 
-	//this->Children.erase(this->Children.begin() + index);
+	this->Children.erase(this->Children.begin() + index);
 
 	return 0;
 }

@@ -9,7 +9,7 @@ class LightSource : public Component
 public:
 	LightSource(const wxString &modelFile, IconType type);
 	LightSource();
-	~LightSource() {}
+	virtual ~LightSource() {}
 
 private:
 	glm::vec4    color;

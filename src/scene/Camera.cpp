@@ -1,5 +1,7 @@
 #include "Camera.h"
 #include "utils/Utils.h"
+#include <time/TimeManager.h>
+#include <render/RenderEngine.h>
 
 Camera::Camera(const glm::vec3& position, const glm::vec3& lookAt, float fovRadians, float _near, float _far) : Component("Camera", position),
 m_far(_far), m_near(_near), m_fovRadians(fovRadians)
@@ -12,7 +14,7 @@ m_far(_far), m_near(_near), m_fovRadians(fovRadians)
 	this->init(position, lookAt);
 }
 
-Camera::Camera(wxGLCanvas* canvas) : Component("Camera"), m_canvas(canvas)
+Camera::Camera() : Component("Camera")
 {
 	this->Reset();
 }
@@ -26,7 +28,7 @@ bool Camera::InputKeyboard(char key)
 {
 	glm::vec3    moveVector;
 	const double MOVE_SPEED = 20.0;
-	float        moveModifier = (DeltaTime * MOVE_SPEED);
+	float        moveModifier = (TimeManager::DeltaTime * MOVE_SPEED);
 	glm::vec3    moveAmount = { moveModifier, moveModifier, moveModifier };
 	bool         result = false;
 
@@ -64,7 +66,7 @@ void Camera::InputMouseMove(const wxMouseEvent& event, const MouseState& mouseSt
 	glm::vec3    moveVector;
 	const double MOVE_SPEED = 3.0;
 	glm::vec2    mouseMovement = { (event.GetX() - mouseState.Position.x), (event.GetY() - mouseState.Position.y) };
-	glm::vec2    moveModifier = { (mouseMovement.x * DeltaTime * MOVE_SPEED), (mouseMovement.y * DeltaTime * MOVE_SPEED) };
+	glm::vec2    moveModifier = { (mouseMovement.x * TimeManager::DeltaTime * MOVE_SPEED), (mouseMovement.y * TimeManager::DeltaTime * MOVE_SPEED) };
 	glm::vec3    moveAmountX = { -moveModifier.x, -moveModifier.x, -moveModifier.x };
 	glm::vec3    moveAmountY = { -moveModifier.y, -moveModifier.y, -moveModifier.y };
 
@@ -93,7 +95,7 @@ void Camera::InputMouseScroll(const wxMouseEvent& event)
 {
 	glm::vec3    moveVector;
 	const double MOVE_SPEED = 20.0;
-	float        moveModifier = ((std::signbit((float)event.GetWheelRotation()) ? -1.0 : 1.0) * DeltaTime * MOVE_SPEED);
+	float        moveModifier = ((std::signbit((float)event.GetWheelRotation()) ? -1.0 : 1.0) * TimeManager::DeltaTime * MOVE_SPEED);
 	glm::vec3    moveAmount = { moveModifier, moveModifier, moveModifier };
 
 	// UP / DOWN (Y)
@@ -184,7 +186,7 @@ void Camera::SetFOV(const wxString& fov)
 
 void Camera::UpdateProjection()
 {
-	const wxSize ClientSize = m_canvas->GetClientSize() * m_canvas->GetContentScaleFactor();
+	const wxSize ClientSize = RenderEngine::Canvas.Size;
 	float aspectRatio = (float)((float)ClientSize.GetWidth() / (float)ClientSize.GetHeight());
 	this->m_projection = glm::perspective(this->m_fovRadians, aspectRatio, this->m_near, this->m_far);
 }

@@ -3,10 +3,7 @@
 
 #include "header/globals.h"
 
-class Camera;
-class Component;
-class Mesh;
-class ShaderProgram;
+
 class RenderEngine
 {
 public:

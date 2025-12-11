@@ -26,6 +26,10 @@
 
 class ZQFrame;
 class LightSource;
+class Camera;
+class Component;
+class Mesh;
+class ShaderProgram;
 
 static const uint32_t  BUFFER_SIZE = 1024;
 static const glm::vec4 CLEAR_VALUE_COLOR = { 0.0f, 0.0f, 1.0f, 1.0f };

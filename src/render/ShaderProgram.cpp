@@ -32,23 +32,6 @@ void ShaderProgram::Use()
 ShaderID ShaderProgram::ID()
 {
 	return this->m_id;
-
-	//if (this->m_name == Utils::SHADER_RESOURCES_DX[SHADER_ID_COLOR].Name)
-	//	return SHADER_ID_COLOR;
-	//else if (this->m_name == Utils::SHADER_RESOURCES_DX[SHADER_ID_DEFAULT].Name)
-	//	return SHADER_ID_DEFAULT;
-	//else if (this->m_name == Utils::SHADER_RESOURCES_DX[SHADER_ID_DEPTH].Name)
-	//	return SHADER_ID_DEPTH;
-	//else if (this->m_name == Utils::SHADER_RESOURCES_DX[SHADER_ID_DEPTH_OMNI].Name)
-	//	return SHADER_ID_DEPTH_OMNI;
-	//else if (this->m_name == Utils::SHADER_RESOURCES_DX[SHADER_ID_HUD].Name)
-	//	return SHADER_ID_HUD;
-	//else if (this->m_name == Utils::SHADER_RESOURCES_DX[SHADER_ID_SKYBOX].Name)
-	//	return SHADER_ID_SKYBOX;
-	//else if (this->m_name == Utils::SHADER_RESOURCES_DX[SHADER_ID_WIREFRAME].Name)
-	//	return SHADER_ID_WIREFRAME;
-
-	//return SHADER_ID_UNKNOWN;
 }
 
 bool ShaderProgram::IsOK()
@@ -181,32 +164,6 @@ int ShaderProgram::UpdateAttribsGL(Component* mesh)
 
 	return 0;
 }
-
-static void CheckGLError()
-{
-	GLenum errLast = GL_NO_ERROR;
-
-	for (;; )
-	{
-		GLenum err = glGetError();
-		if (err == GL_NO_ERROR)
-			return;
-
-		// normally the error is reset by the call to glGetError() but if
-		// glGetError() itself returns an error, we risk looping forever here
-		// so check that we get a different error than the last time
-		if (err == errLast)
-		{
-			wxLogError("OpenGL error state couldn't be reset.");
-			return;
-		}
-
-		errLast = err;
-
-		wxLogError("OpenGL error %d", err);
-	}
-}
-
 int ShaderProgram::UpdateUniformsGL(Component* mesh, const DrawProperties& properties)
 {
 	if (mesh == nullptr)
@@ -228,7 +185,7 @@ int ShaderProgram::UpdateUniformsGL(Component* mesh, const DrawProperties& prope
 
 		this->updateUniformGL(id, UBO_GL_MATRIX, &mb, sizeof(mb));
 	}
-	CheckGLError();
+	Utils::CheckGLError();
 	// COLOR BUFFER
 	id = this->Uniforms[UBO_GL_COLOR];
 
@@ -236,7 +193,7 @@ int ShaderProgram::UpdateUniformsGL(Component* mesh, const DrawProperties& prope
 		CBColor cb = CBColor(mesh->ComponentMaterial.diffuse); // dynamic_cast<Mesh*>(mesh)->GetBoundingVolume() != nullptr ? mesh->ComponentMaterial.diffuse : mesh->Parent->ComponentMaterial.diffuse);
 		this->updateUniformGL(id, UBO_GL_COLOR, &cb, sizeof(cb));
 	}
-	CheckGLError();
+	Utils::CheckGLError();
 	// DEFAULT BUFFER
 	id = this->Uniforms[UBO_GL_DEFAULT];
 
@@ -244,7 +201,7 @@ int ShaderProgram::UpdateUniformsGL(Component* mesh, const DrawProperties& prope
 		CBDefault db = CBDefault(mesh, properties);
 		this->updateUniformGL(id, UBO_GL_DEFAULT, &db, sizeof(db));
 	}
-	CheckGLError();
+	Utils::CheckGLError();
 	// DEPTH BUFFER
 	id = this->Uniforms[UBO_GL_DEPTH];
 
@@ -252,7 +209,7 @@ int ShaderProgram::UpdateUniformsGL(Component* mesh, const DrawProperties& prope
 		CBDepth db = CBDepth(properties.Light->GetLight().position, properties.DepthLayer);
 		this->updateUniformGL(id, UBO_GL_DEPTH, &db, sizeof(db));
 	}
-	CheckGLError();
+	Utils::CheckGLError();
 	// HUD BUFFER
 	id = this->Uniforms[UBO_GL_HUD];
 
@@ -275,7 +232,7 @@ int ShaderProgram::UpdateUniformsGL(Component* mesh, const DrawProperties& prope
 			glBindTexture(GL_TEXTURE0 + i, 0);
 		}
 	}
-	CheckGLError();
+	Utils::CheckGLError();
 	// BIND DEPTH MAP - 2D TEXTURE ARRAY
 	//id = this->Uniforms[UBO_GL_TEXTURES6];
 
@@ -300,7 +257,7 @@ int ShaderProgram::UpdateUniformsGL(Component* mesh, const DrawProperties& prope
 	//	glBindTexture(GL_TEXTURE_CUBE_MAP_ARRAY, 0);
 	//}
 
-	CheckGLError();
+	Utils::CheckGLError();
 #if defined _DEBUG
 	glValidateProgram(this->m_program);
 

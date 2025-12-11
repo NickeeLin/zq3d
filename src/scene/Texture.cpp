@@ -3,6 +3,8 @@
 #include "Texture.h"
 #include <wx/image.h>
 
+static const uint32_t  MAX_TEXTURES = 6;
+
 wxImage* LoadImageFile(const wxString& file, wxBitmapType type = wxBITMAP_TYPE_ANY)
 {
 	wxImage* image = new wxImage(file, type);
@@ -75,8 +77,77 @@ Texture::Texture(const wxString& imageFile, bool srgb, bool repeat, bool flipY, 
 	}
 }
 
+Texture::Texture(const std::vector<wxString>& imageFiles, bool repeat, bool flipY, bool transparent, const glm::vec2& scale)
+	: id(0), 
+	type(TEXTURE_CUBEMAP)
+{
+	wxImage* image;
+	std::vector<wxImage*> images;
+
+	if ((int)imageFiles.size() != MAX_TEXTURES)
+		return;
+
+	for (int i = 0; i < MAX_TEXTURES; i++) {
+		if ((image = LoadImageFile(imageFiles[i])) != nullptr)
+			images.push_back(image);
+	}
+
+	if ((int)images.size() != MAX_TEXTURES)
+		return;
+
+
+	this->flipY = flipY;
+	this->imageFiles = imageFiles;
+	this->Scale = scale;
+	this->srgb = true;
+	this->transparent = transparent;
+
+	this->glType = GL_TEXTURE_CUBE_MAP;
+
+	glEnable(this->glType);
+	glCreateTextures(this->glType, 1, &this->id);
+
+	if (this->id > 0) {
+		for (int i = 0; i < MAX_TEXTURES; i++)
+			this->loadTextureImageGL(images[i], true, i);
+	}
+
+	/*switch (RenderEngine::SelectedGraphicsAPI) {
+#if defined _WINDOWS
+	case GRAPHICS_API_DIRECTX11:
+	case GRAPHICS_API_DIRECTX12:
+		this->loadTextureImagesDX(images);
+		break;
+#endif
+	case GRAPHICS_API_OPENGL:
+		this->glType = GL_TEXTURE_CUBE_MAP;
+
+		glEnable(this->glType);
+		glCreateTextures(this->glType, 1, &this->id);
+
+		if (this->id > 0) {
+			for (int i = 0; i < MAX_TEXTURES; i++)
+				this->loadTextureImageGL(images[i], true, i);
+		}
+
+		break;
+	case GRAPHICS_API_VULKAN:
+		this->loadTextureImagesVK(images);
+		break;
+	default:
+		throw;
+	}*/
+
+	for (auto img : images) {
+		if (img != nullptr)
+			delete img;
+	}
+}
+
 Texture::~Texture()
 {
+	if (this->id > 0)
+		glDeleteTextures(1, &this->id);
 }
 
 void Texture::loadTextureImageGL(wxImage* image, bool cubemap, int index)
@@ -110,27 +181,17 @@ void Texture::loadTextureImageGL(wxImage* image, bool cubemap, int index)
 	}
 	else
 	{
-		//glTexParameteri(this->glType, GL_TEXTURE_BASE_LEVEL, 0);
-		//glTexParameteri(this->glType, GL_TEXTURE_MAX_LEVEL, this->mipLevels - 1);
+		glTexParameteri(this->glType, GL_TEXTURE_BASE_LEVEL, 0);
+		glTexParameteri(this->glType, GL_TEXTURE_MAX_LEVEL, this->mipLevels - 1);
 
-		//// https://www.khronos.org/opengl/wiki/Common_Mistakes#Automatic_mipmap_generation
-		//glTexStorage2D(this->glType, this->mipLevels, formatIn, image2.GetWidth(), image2.GetHeight());
-		//glTexSubImage2D(this->glType, 0, 0, 0, image2.GetWidth(), image2.GetHeight(), formatOut, GL_UNSIGNED_BYTE, pixels);
+		// https://www.khronos.org/opengl/wiki/Common_Mistakes#Automatic_mipmap_generation
+		glTexStorage2D(this->glType, this->mipLevels, formatIn, image2.GetWidth(), image2.GetHeight());
+		glTexSubImage2D(this->glType, 0, 0, 0, image2.GetWidth(), image2.GetHeight(), formatOut, GL_UNSIGNED_BYTE, pixels);
 
-		//glGenerateMipmap(this->glType);
+		glGenerateMipmap(this->glType);
 
-		//this->setWrappingGL();
-		//this->setFilteringGL(true);
-		// set the texture wrapping parameters
-		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_REPEAT);
-		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_REPEAT);
-		// set texture filtering parameters
-		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
-		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
-
-		glTexImage2D(GL_TEXTURE_2D, 0, GL_RGB, image2.GetWidth(), image2.GetHeight(), 0, GL_RGB, GL_UNSIGNED_BYTE, image2.GetData());
-		glGenerateMipmap(GL_TEXTURE_2D);
-
+		this->setWrappingGL();
+		this->setFilteringGL(true);
 	}
 
 	if (this->transparent)
@@ -150,6 +211,13 @@ void Texture::reload()
 
 void Texture::setAlphaBlendingGL(bool enable)
 {
+	if (enable) {
+		glEnable(GL_BLEND);
+		glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
+	}
+	else {
+		glDisable(GL_BLEND);
+	}
 }
 
 void Texture::setFilteringGL(bool mipmap)
@@ -166,6 +234,9 @@ void Texture::setWrappingGL()
 
 void Texture::setWrappingCubemapGL()
 {
+	glTexParameteri(this->glType, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
+	glTexParameteri(this->glType, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
+	glTexParameteri(this->glType, GL_TEXTURE_WRAP_R, GL_CLAMP_TO_EDGE);
 }
 
 bool Texture::FlipY()
